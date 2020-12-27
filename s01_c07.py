@@ -105,9 +105,13 @@ def KeyExpansion(key, Nk=4):
 
     return w
 
-def ShiftRows():
+def ShiftRows(state):
+    new_state = [state[0],
+                 state[1][1:] + state[1][:1],
+                 state[2][2:] + state[2][:2],
+                 state[3][3:] + state[3][:3]]
 
-    return
+    return new_state
 
 def MixColumns():
 
@@ -137,9 +141,14 @@ if __name__ == '__main__':
     ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
     key = "YELLOW SUBMARINE"
 
-    # check a few key expansions (appendix A)
+    # KeyExpansion (appendix A)
     h_key = '2b7e151628aed2a6abf7158809cf4f3c'
     hex_w = [bin_to_hex(w) for w in KeyExpansion(hex_to_bin(h_key))]
     assert hex_w[2] == 'abf71588'
     assert hex_w[15] == '6d7a883b'
     assert hex_w[32] == 'ead27321'
+
+    # ShiftRows
+    test_state = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]
+    shft_state = [[1, 2, 3, 4], [6, 7, 8, 5], [11, 12, 9, 10], [16, 13, 14, 15]]
+    assert ShiftRows(test_state) == shft_state
