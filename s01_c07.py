@@ -2,7 +2,7 @@ from s01_c02 import xor
 
 # AES-128 in ECB mode
 
-def SubBytes(byte):
+def SubBytes(state):
     # sub bytes, lookup from fig 7 of spec
     s_box = {'00000000': '01100011', '00000001': '01111100', '00000010': '01110111', '00000011': '01111011',
              '00000100': '11110010', '00000101': '01101011', '00000110': '01101111', '00000111': '11000101',
@@ -69,7 +69,7 @@ def SubBytes(byte):
              '11111000': '01000001', '11111001': '10011001', '11111010': '00101101', '11111011': '00001111',
              '11111100': '10110000', '11111101': '01010100', '11111110': '10111011', '11111111': '00010110'}
 
-    return s_box.get(byte)
+    return [s_box.get(byte) for byte in state]
 
 def SubWord(word):
     out = [SubBytes(byte) for byte in block_string(word, 8, 'front')]
@@ -106,10 +106,15 @@ def KeyExpansion(key, Nk=4):
     return w
 
 def ShiftRows(state):
-    new_state = [state[0],
-                 state[1][1:] + state[1][:1],
-                 state[2][2:] + state[2][:2],
-                 state[3][3:] + state[3][:3]]
+    # note the index is weird cause it's by column not row
+    # 0 4 8  12    0  4  8  12
+    # 1 5 9  13 -> 5  9  13 1
+    # 2 6 10 14    10 14 2  6
+    # 3 7 11 15    15 3  7  11
+    new_state = [state[i] for i in [0,  5,  10, 15,
+                                    4,  9,  14, 3,
+                                    8,  13, 2,  7,
+                                    12, 1,  6,  11]]
 
     return new_state
 
@@ -144,11 +149,22 @@ if __name__ == '__main__':
     # KeyExpansion (appendix A)
     h_key = '2b7e151628aed2a6abf7158809cf4f3c'
     hex_w = [bin_to_hex(w) for w in KeyExpansion(hex_to_bin(h_key))]
-    assert hex_w[2] == 'abf71588'
+    assert hex_w[2]  == 'abf71588'
     assert hex_w[15] == '6d7a883b'
     assert hex_w[32] == 'ead27321'
 
-    # ShiftRows
-    test_state = [[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]
-    shft_state = [[1, 2, 3, 4], [6, 7, 8, 5], [11, 12, 9, 10], [16, 13, 14, 15]]
-    assert ShiftRows(test_state) == shft_state
+    # cipher example from appendix B
+    input = '3243f6a8885a308d313198a2e0370734'
+    key   = '2b7e151628aed2a6abf7158809cf4f3c'
+
+    # test round 1
+    start_round       = block_string(hex_to_bin('193de3bea0f4e22b9ac68d2ae9f84808'), 8, 'front')
+    after_SubBytes    = block_string(hex_to_bin('d42711aee0bf98f1b8b45de51e415230'), 8, 'front')
+    after_ShiftRows   = block_string(hex_to_bin('d4bf5d30e0b452aeb84111f11e2798e5'), 8, 'front')
+    after_MixColumns  = block_string(hex_to_bin('046681e5e0cb199a48f8d37a2806264c'), 8, 'front')
+    after_AddRoundKey = block_string(hex_to_bin('a0fafe1788542cb123a339392a6c7605'), 8, 'front')
+
+    assert SubBytes(start_round) == after_SubBytes
+    assert ShiftRows(after_SubBytes) == after_ShiftRows
+    assert MixColumns(after_ShiftRows) == after_MixColumns
+    assert AddRoundKey(after_MixColumns) == after_AddRoundKey
