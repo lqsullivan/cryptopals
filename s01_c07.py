@@ -118,9 +118,48 @@ def ShiftRows(state):
 
     return new_state
 
-def MixColumns():
+def MultGF(a, b):
+    """
+    multiplication in GF(2^8)
+    peasant's algorithm (thanks, wikipedia)
+    :param a:
+    :param b:
+    :return:
+    """
 
-    return
+    p = '00000000'
+
+    for i in range(0, 8):
+        # stop if a or b is 0
+        if(a == '00000000' or b == '00000000'):
+            break
+        # if b's trailing bit is 1, xor p and a (addition in this field)
+        if(b[7] == '1'):
+            p = xor(p, a)
+        # shift b one bit right (this divides by x)
+        b = '0' + b[:7]
+        # set carry flag as leftmost bit of a
+        carry = a[0]
+        # shift a one bit left (multiply by x)
+        a = a[1:] + '0'
+        # if carry, xor a with 0x1b (the irreducible polynomial without the x^8 term)
+        if(carry == '1'):
+            a = xor(a, '00011011')
+
+    return p
+
+def MixColumns(s):
+    # initialize
+    new_state = s
+
+    # each column, xor is commutative so no worries about that order
+    for i in range(0, 4):
+        new_state[i]   = xor(xor(xor(MultGF('00000010', s[i]), MultGF('00000011', s[i+1])), s[i+2]), s[i+3])
+        new_state[i+1] = xor(xor(xor(s[i], MultGF('00000010', s[i+1])), MultGF('00000011', s[i+2])), s[i+3])
+        new_state[i+2] = xor(xor(xor(s[i], s[i+1]), MultGF('00000010', s[i+2])), MultGF('00000011', s[i+3]))
+        new_state[i+3] = xor(xor(xor(MultGF('00000011', s[i]), s[i+1]), s[i+2]), MultGF('00000010', s[i+3]))
+
+    return new_state
 
 def AddRoundKey():
 
@@ -152,6 +191,10 @@ if __name__ == '__main__':
     assert hex_w[2]  == 'abf71588'
     assert hex_w[15] == '6d7a883b'
     assert hex_w[32] == 'ead27321'
+
+    # GF(2^8) multiplication
+    assert MultGF('01010011', '11001010') == '00000001'
+    # probably need more tests here
 
     # cipher example from appendix B
     input = '3243f6a8885a308d313198a2e0370734'
