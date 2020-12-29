@@ -126,7 +126,6 @@ def MultGF(a, b):
     :param b:
     :return:
     """
-
     p = '00000000'
 
     for i in range(0, 8):
@@ -150,14 +149,14 @@ def MultGF(a, b):
 
 def MixColumns(s):
     # initialize
-    new_state = s
+    new_state = [''] * 16
 
     # each column, xor is commutative so no worries about that order
     for i in range(0, 4):
-        new_state[i]   = xor(xor(xor(MultGF('00000010', s[i]), MultGF('00000011', s[i+1])), s[i+2]), s[i+3])
-        new_state[i+1] = xor(xor(xor(s[i], MultGF('00000010', s[i+1])), MultGF('00000011', s[i+2])), s[i+3])
-        new_state[i+2] = xor(xor(xor(s[i], s[i+1]), MultGF('00000010', s[i+2])), MultGF('00000011', s[i+3]))
-        new_state[i+3] = xor(xor(xor(MultGF('00000011', s[i]), s[i+1]), s[i+2]), MultGF('00000010', s[i+3]))
+        new_state[4*i]   = xor(xor(xor(MultGF('00000010', s[4*i]), MultGF('00000011', s[4*i+1])), s[4*i+2]), s[4*i+3])
+        new_state[4*i+1] = xor(xor(xor(s[4*i], MultGF('00000010', s[4*i+1])), MultGF('00000011', s[4*i+2])), s[4*i+3])
+        new_state[4*i+2] = xor(xor(xor(s[4*i], s[4*i+1]), MultGF('00000010', s[4*i+2])), MultGF('00000011', s[4*i+3]))
+        new_state[4*i+3] = xor(xor(xor(MultGF('00000011', s[4*i]), s[4*i+1]), s[4*i+2]), MultGF('00000010', s[4*i+3]))
 
     return new_state
 
@@ -207,6 +206,7 @@ if __name__ == '__main__':
     after_MixColumns  = block_string(hex_to_bin('046681e5e0cb199a48f8d37a2806264c'), 8, 'front')
     after_AddRoundKey = block_string(hex_to_bin('a0fafe1788542cb123a339392a6c7605'), 8, 'front')
 
+    assert start_round == block_string(xor(hex_to_bin(input), hex_to_bin(key)), 8, 'front')
     assert SubBytes(start_round) == after_SubBytes
     assert ShiftRows(after_SubBytes) == after_ShiftRows
     assert MixColumns(after_ShiftRows) == after_MixColumns
