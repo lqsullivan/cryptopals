@@ -386,10 +386,7 @@ def DecryptAES(bcipher, bkey):
 
 
 if __name__ == '__main__':
-    ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
-    key = "YELLOW SUBMARINE"
-
-    # KeyExpansion (appendix A)
+    # test KeyExpansion (appendix A)
     h_key = '2b7e151628aed2a6abf7158809cf4f3c'
     hex_w = [bin_to_hex(w) for w in KeyExpansion(hex_to_bin(h_key))]
     assert hex_w[2]  == 'abf71588'
@@ -431,4 +428,10 @@ if __name__ == '__main__':
 
     # test encrypt something
     de_la_plaintext  = open("./de_la_test.txt", "r").read()
-    de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("YELLOW SUBMARINE"))
+    de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("me myself and i."))
+    de_la_decoded = DecryptAES(de_la_ciphertext, ascii_to_bin("me myself and i."))
+
+    # decode the prompt
+    ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
+    key = "YELLOW SUBMARINE"
+    plaintext = DecryptAES(ascii_to_bin(ciphertext), ascii_to_bin(key))
