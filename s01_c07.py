@@ -1,4 +1,4 @@
-from s01_c01 import b64_to_bin, ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
+from s01_c01 import b64_to_bin, bin_to_b64, ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
 from s01_c02 import xor
 
 
@@ -427,12 +427,38 @@ if __name__ == '__main__':
     assert DecryptAES(hex_to_bin('3925841d02dc09fbdc118597196a0b32'), hex_to_bin(key)) == hex_to_bin(input)
 
     # test encrypt something
-    de_la_plaintext  = open("./de_la_test.txt", "r").read()
-    de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("me myself and i."))
-    de_la_decoded = DecryptAES(de_la_ciphertext, ascii_to_bin("me myself and i."))
+    # de_la_plaintext  = open("./de_la_test.txt", "r").read()
+    # de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("me myself and i."))
+    # de_la_decoded = DecryptAES(de_la_ciphertext, ascii_to_bin("me myself and i."))
 
     # decode the prompt
-    ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
+    my_ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
     key = "YELLOW SUBMARINE"
     plaintext = DecryptAES(b64_to_bin(ciphertext), ascii_to_bin(key))
     print(bin_to_ascii(plaintext))
+
+    # troubleshoot decrypt
+    test_plain = "I'm back and I'm ringing the bell"
+    test_crypt = EncryptAES(ascii_to_bin(test_plain), ascii_to_bin("YELLOW SUBMARINE"))
+    a = DecryptAES(test_crypt, ascii_to_bin("YELLOW SUBMARINE"))
+
+# or i guess here's how they intended...i thought 'in code' meant do it yourself
+from Crypto.Cipher import AES
+import base64
+ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
+cipherbytes = base64.decodebytes(bytes(ciphertext.encode()))
+cipher = AES.new(b'YELLOW SUBMARINE', AES.MODE_ECB)
+plaintext = cipher.decrypt(cipherbytes)
+
+# test 1 - encode a single 16-byte message
+from Crypto.Util.Padding import pad, unpad
+
+plaintext = 'this message is 32 bytes longggg'
+key       = 'YELLOW SUBMARINE'
+true_encode = cipher.encrypt(plaintext.encode('ascii'))
+my_encode   = EncryptAES(ascii_to_bin(plaintext), ascii_to_bin(key))
+assert true_encode.hex() == bin_to_hex(my_encode)
+
+# test 2 - decode that single 16-byte message
+true_decode = cipher.decrypt(true_encode)
+my_decode = bin_to_ascii(DecryptAES(my_encode, ascii_to_bin(key)))
