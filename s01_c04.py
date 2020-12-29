@@ -1,6 +1,4 @@
 
-# read input
-ciphertexts = [hex_to_bin(text) for text in open('s01_c04_input.txt').read().splitlines()]
 
 def detect_single_char_xor(ciphertexts):
     all_key   = [''] * ciphertexts.__len__()
@@ -43,4 +41,6 @@ def detect_single_char_xor(ciphertexts):
 
 # challenge ----
 if __name__ == '__main__':
+    # read input
+    ciphertexts = [hex_to_bin(text) for text in open('s01_c04_input.txt').read().splitlines()]
     assert detect_single_char_xor(ciphertexts) == '5'
