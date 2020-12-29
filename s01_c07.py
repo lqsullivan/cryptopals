@@ -1,3 +1,4 @@
+from s01_c01 import ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
 from s01_c02 import xor
 
 # AES-128 in ECB mode
@@ -72,7 +73,7 @@ def SubBytes(state):
     return [s_box.get(byte) for byte in state]
 
 def SubWord(word):
-    out = [SubBytes(byte) for byte in block_string(word, 8, 'front')]
+    out = SubBytes(block_string(word, 8, 'front'))
     return ''.join(out)
 
 def RotWord(word):
@@ -104,6 +105,11 @@ def KeyExpansion(key, Nk=4):
         w[i] = xor(temp_word, w[i-Nk])
 
     return w
+
+def MakeState(bstring):
+    state = block_string(bstring, 8, 'front')
+
+    return state
 
 def ShiftRows(state):
     # note the index is weird cause it's by column not row
@@ -160,9 +166,60 @@ def MixColumns(s):
 
     return new_state
 
-def AddRoundKey():
+def MakeRoundKeys(exp_key, rounds = 11):
+    """
+    make round key lists from expanded keys
 
-    return
+    :param exp_key:
+    :param rounds: lazily making this 11 since i'm doing 128 bit, hopefully doesn't bite me later
+    :return:
+    """
+    round_keys = [None] * rounds
+
+    for i in range(rounds):
+        round_keys[i] = block_string(exp_key[4*i    ], 8, 'front') + \
+                        block_string(exp_key[4*i + 1], 8, 'front') + \
+                        block_string(exp_key[4*i + 2], 8, 'front') + \
+                        block_string(exp_key[4*i + 3], 8, 'front')
+    return round_keys
+
+def AddRoundKey(state, round_key):
+    new_state = [xor(state[i], round_key[i]) for i in range(0, 16)]
+
+    return new_state
+
+def EncryptAES(bmessage, bkey):
+    if(len(bkey) != 8*16):
+        ValueError
+
+    # get round keys
+    round_keys = MakeRoundKeys(exp_key=KeyExpansion(bkey, Nk=4), rounds = 11)
+
+    # convert message to blocks
+    msg_blocks = pad_blocks(block_string(bmessage, 128, 'front'), 128, 'back', '0')
+
+    cipher_blocks = [None] * len(msg_blocks)
+
+    for m in range(len(cipher_blocks)):
+        state = MakeState(msg_blocks[m])
+
+        # round 0
+        state = AddRoundKey(state, round_keys[0])
+
+        # rounds 1-10
+        for r in range(1, 11):
+            state = SubBytes(state)
+            state = ShiftRows(state)
+            # mix columns omitted for last round
+            if(r != 10):
+                state = MixColumns(state)
+
+            state = AddRoundKey(state, round_keys[r])
+            #hex_state = ' '.join([bin_to_hex(a) for a in state])
+
+        cipher_blocks[m] = ''.join(state)
+
+    return ''.join(cipher_blocks)
 
 # encrypt
     # expand key
@@ -199,15 +256,25 @@ if __name__ == '__main__':
     input = '3243f6a8885a308d313198a2e0370734'
     key   = '2b7e151628aed2a6abf7158809cf4f3c'
 
+    exp_keys = KeyExpansion(hex_to_bin(key))
+    round_keys = MakeRoundKeys(exp_keys)
+
     # test round 1
     start_round       = block_string(hex_to_bin('193de3bea0f4e22b9ac68d2ae9f84808'), 8, 'front')
     after_SubBytes    = block_string(hex_to_bin('d42711aee0bf98f1b8b45de51e415230'), 8, 'front')
     after_ShiftRows   = block_string(hex_to_bin('d4bf5d30e0b452aeb84111f11e2798e5'), 8, 'front')
     after_MixColumns  = block_string(hex_to_bin('046681e5e0cb199a48f8d37a2806264c'), 8, 'front')
-    after_AddRoundKey = block_string(hex_to_bin('a0fafe1788542cb123a339392a6c7605'), 8, 'front')
+    round_key         = block_string(hex_to_bin('a0fafe1788542cb123a339392a6c7605'), 8, 'front')
+    after_AddRoundKey = block_string(hex_to_bin('a49c7ff2689f352b6b5bea43026a5049'), 8, 'front')
 
     assert start_round == block_string(xor(hex_to_bin(input), hex_to_bin(key)), 8, 'front')
     assert SubBytes(start_round) == after_SubBytes
     assert ShiftRows(after_SubBytes) == after_ShiftRows
     assert MixColumns(after_ShiftRows) == after_MixColumns
-    assert AddRoundKey(after_MixColumns) == after_AddRoundKey
+    assert round_key == round_keys[1]
+    assert AddRoundKey(after_MixColumns, round_keys[1]) == after_AddRoundKey
+    assert EncryptAES(hex_to_bin(input), hex_to_bin(key)) == hex_to_bin('3925841d02dc09fbdc118597196a0b32')
+
+    # test encrypt something
+    de_la_plaintext  = open("./de_la_test.txt", "r").read()
+    de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("YELLOW SUBMARINE"))
