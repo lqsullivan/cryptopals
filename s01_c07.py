@@ -1,4 +1,4 @@
-from s01_c01 import ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
+from s01_c01 import b64_to_bin, ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
 from s01_c02 import xor
 
 
@@ -434,4 +434,5 @@ if __name__ == '__main__':
     # decode the prompt
     ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
     key = "YELLOW SUBMARINE"
-    plaintext = DecryptAES(ascii_to_bin(ciphertext), ascii_to_bin(key))
+    plaintext = DecryptAES(b64_to_bin(ciphertext), ascii_to_bin(key))
+    print(bin_to_ascii(plaintext))
