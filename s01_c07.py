@@ -1,7 +1,6 @@
 from s01_c01 import ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
 from s01_c02 import xor
 
-# AES-128 in ECB mode
 
 def SubBytes(state):
     # sub bytes, lookup from fig 7 of spec
@@ -72,14 +71,17 @@ def SubBytes(state):
 
     return [s_box.get(byte) for byte in state]
 
+
 def SubWord(word):
     out = SubBytes(block_string(word, 8, 'front'))
     return ''.join(out)
+
 
 def RotWord(word):
     word_bytes = block_string(word, 8, 'front')
     out = word_bytes[1:] + word_bytes[:1]
     return ''.join(out)
+
 
 def KeyExpansion(key, Nk=4):
     # define round constants
@@ -106,10 +108,12 @@ def KeyExpansion(key, Nk=4):
 
     return w
 
+
 def MakeState(bstring):
     state = block_string(bstring, 8, 'front')
 
     return state
+
 
 def ShiftRows(state):
     # note the index is weird cause it's by column not row
@@ -123,6 +127,7 @@ def ShiftRows(state):
                                     12, 1,  6,  11]]
 
     return new_state
+
 
 def MultGF(a, b):
     """
@@ -153,6 +158,7 @@ def MultGF(a, b):
 
     return p
 
+
 def MixColumns(s):
     # initialize
     new_state = [''] * 16
@@ -165,6 +171,7 @@ def MixColumns(s):
         new_state[4*i+3] = xor(xor(xor(MultGF('00000011', s[4*i]), s[4*i+1]), s[4*i+2]), MultGF('00000010', s[4*i+3]))
 
     return new_state
+
 
 def MakeRoundKeys(exp_key, rounds = 11):
     """
@@ -183,17 +190,19 @@ def MakeRoundKeys(exp_key, rounds = 11):
                         block_string(exp_key[4*i + 3], 8, 'front')
     return round_keys
 
+
 def AddRoundKey(state, round_key):
     new_state = [xor(state[i], round_key[i]) for i in range(0, 16)]
 
     return new_state
 
+
 def EncryptAES(bmessage, bkey):
-    if(len(bkey) != 8*16):
+    if len(bkey) != 8*16:
         ValueError
 
     # get round keys
-    round_keys = MakeRoundKeys(exp_key=KeyExpansion(bkey, Nk=4), rounds = 11)
+    round_keys = MakeRoundKeys(exp_key=KeyExpansion(bkey, Nk=4), rounds=11)
 
     # convert message to blocks
     msg_blocks = pad_blocks(block_string(bmessage, 128, 'front'), 128, 'back', '0')
@@ -215,27 +224,166 @@ def EncryptAES(bmessage, bkey):
                 state = MixColumns(state)
 
             state = AddRoundKey(state, round_keys[r])
-            #hex_state = ' '.join([bin_to_hex(a) for a in state])
+            # hex_state = ' '.join([bin_to_hex(a) for a in state])
 
         cipher_blocks[m] = ''.join(state)
 
     return ''.join(cipher_blocks)
 
-# encrypt
-    # expand key
-    # add round key
-    # 9 times
-        # sub bytes
-        # shift rows
-        # mix cols
-        # add round key
-    # 1 time
-        # sub bytes
-        # shift rows
-        # add round key
 
-# decrypt
-    # uhh...undo encrypt?
+def InvShiftRows(state):
+    # note the index is weird cause it's by column not row
+    # 0 4 8  12    0  4  8  12
+    # 1 5 9  13 -> 13 1  5  9
+    # 2 6 10 14    10 14 2  6
+    # 3 7 11 15    7  11 15 3
+    new_state = [state[i] for i in [0, 13, 10, 7,
+                                    4,  1, 14, 11,
+                                    8,  5, 2,  15,
+                                    12, 9, 6,  3]]
+
+    return new_state
+
+
+def InvSubBytes(state):
+    # now that i implemented GF multiplication i could do that, but i already have the old lookup to invert
+    inv_s_box = {'01100011': '00000000', '01111100': '00000001', '01110111': '00000010', '01111011': '00000011',
+                 '11110010': '00000100', '01101011': '00000101', '01101111': '00000110', '11000101': '00000111',
+                 '00110000': '00001000', '00000001': '00001001', '01100111': '00001010', '00101011': '00001011',
+                 '11111110': '00001100', '11010111': '00001101', '10101011': '00001110', '01110110': '00001111',
+                 '11001010': '00010000', '10000010': '00010001', '11001001': '00010010', '01111101': '00010011',
+                 '11111010': '00010100', '01011001': '00010101', '01000111': '00010110', '11110000': '00010111',
+                 '10101101': '00011000', '11010100': '00011001', '10100010': '00011010', '10101111': '00011011',
+                 '10011100': '00011100', '10100100': '00011101', '01110010': '00011110', '11000000': '00011111',
+                 '10110111': '00100000', '11111101': '00100001', '10010011': '00100010', '00100110': '00100011',
+                 '00110110': '00100100', '00111111': '00100101', '11110111': '00100110', '11001100': '00100111',
+                 '00110100': '00101000', '10100101': '00101001', '11100101': '00101010', '11110001': '00101011',
+                 '01110001': '00101100', '11011000': '00101101', '00110001': '00101110', '00010101': '00101111',
+                 '00000100': '00110000', '11000111': '00110001', '00100011': '00110010', '11000011': '00110011',
+                 '00011000': '00110100', '10010110': '00110101', '00000101': '00110110', '10011010': '00110111',
+                 '00000111': '00111000', '00010010': '00111001', '10000000': '00111010', '11100010': '00111011',
+                 '11101011': '00111100', '00100111': '00111101', '10110010': '00111110', '01110101': '00111111',
+                 '00001001': '01000000', '10000011': '01000001', '00101100': '01000010', '00011010': '01000011',
+                 '00011011': '01000100', '01101110': '01000101', '01011010': '01000110', '10100000': '01000111',
+                 '01010010': '01001000', '00111011': '01001001', '11010110': '01001010', '10110011': '01001011',
+                 '00101001': '01001100', '11100011': '01001101', '00101111': '01001110', '10000100': '01001111',
+                 '01010011': '01010000', '11010001': '01010001', '00000000': '01010010', '11101101': '01010011',
+                 '00100000': '01010100', '11111100': '01010101', '10110001': '01010110', '01011011': '01010111',
+                 '01101010': '01011000', '11001011': '01011001', '10111110': '01011010', '00111001': '01011011',
+                 '01001010': '01011100', '01001100': '01011101', '01011000': '01011110', '11001111': '01011111',
+                 '11010000': '01100000', '11101111': '01100001', '10101010': '01100010', '11111011': '01100011',
+                 '01000011': '01100100', '01001101': '01100101', '00110011': '01100110', '10000101': '01100111',
+                 '01000101': '01101000', '11111001': '01101001', '00000010': '01101010', '01111111': '01101011',
+                 '01010000': '01101100', '00111100': '01101101', '10011111': '01101110', '10101000': '01101111',
+                 '01010001': '01110000', '10100011': '01110001', '01000000': '01110010', '10001111': '01110011',
+                 '10010010': '01110100', '10011101': '01110101', '00111000': '01110110', '11110101': '01110111',
+                 '10111100': '01111000', '10110110': '01111001', '11011010': '01111010', '00100001': '01111011',
+                 '00010000': '01111100', '11111111': '01111101', '11110011': '01111110', '11010010': '01111111',
+                 '11001101': '10000000', '00001100': '10000001', '00010011': '10000010', '11101100': '10000011',
+                 '01011111': '10000100', '10010111': '10000101', '01000100': '10000110', '00010111': '10000111',
+                 '11000100': '10001000', '10100111': '10001001', '01111110': '10001010', '00111101': '10001011',
+                 '01100100': '10001100', '01011101': '10001101', '00011001': '10001110', '01110011': '10001111',
+                 '01100000': '10010000', '10000001': '10010001', '01001111': '10010010', '11011100': '10010011',
+                 '00100010': '10010100', '00101010': '10010101', '10010000': '10010110', '10001000': '10010111',
+                 '01000110': '10011000', '11101110': '10011001', '10111000': '10011010', '00010100': '10011011',
+                 '11011110': '10011100', '01011110': '10011101', '00001011': '10011110', '11011011': '10011111',
+                 '11100000': '10100000', '00110010': '10100001', '00111010': '10100010', '00001010': '10100011',
+                 '01001001': '10100100', '00000110': '10100101', '00100100': '10100110', '01011100': '10100111',
+                 '11000010': '10101000', '11010011': '10101001', '10101100': '10101010', '01100010': '10101011',
+                 '10010001': '10101100', '10010101': '10101101', '11100100': '10101110', '01111001': '10101111',
+                 '11100111': '10110000', '11001000': '10110001', '00110111': '10110010', '01101101': '10110011',
+                 '10001101': '10110100', '11010101': '10110101', '01001110': '10110110', '10101001': '10110111',
+                 '01101100': '10111000', '01010110': '10111001', '11110100': '10111010', '11101010': '10111011',
+                 '01100101': '10111100', '01111010': '10111101', '10101110': '10111110', '00001000': '10111111',
+                 '10111010': '11000000', '01111000': '11000001', '00100101': '11000010', '00101110': '11000011',
+                 '00011100': '11000100', '10100110': '11000101', '10110100': '11000110', '11000110': '11000111',
+                 '11101000': '11001000', '11011101': '11001001', '01110100': '11001010', '00011111': '11001011',
+                 '01001011': '11001100', '10111101': '11001101', '10001011': '11001110', '10001010': '11001111',
+                 '01110000': '11010000', '00111110': '11010001', '10110101': '11010010', '01100110': '11010011',
+                 '01001000': '11010100', '00000011': '11010101', '11110110': '11010110', '00001110': '11010111',
+                 '01100001': '11011000', '00110101': '11011001', '01010111': '11011010', '10111001': '11011011',
+                 '10000110': '11011100', '11000001': '11011101', '00011101': '11011110', '10011110': '11011111',
+                 '11100001': '11100000', '11111000': '11100001', '10011000': '11100010', '00010001': '11100011',
+                 '01101001': '11100100', '11011001': '11100101', '10001110': '11100110', '10010100': '11100111',
+                 '10011011': '11101000', '00011110': '11101001', '10000111': '11101010', '11101001': '11101011',
+                 '11001110': '11101100', '01010101': '11101101', '00101000': '11101110', '11011111': '11101111',
+                 '10001100': '11110000', '10100001': '11110001', '10001001': '11110010', '00001101': '11110011',
+                 '10111111': '11110100', '11100110': '11110101', '01000010': '11110110', '01101000': '11110111',
+                 '01000001': '11111000', '10011001': '11111001', '00101101': '11111010', '00001111': '11111011',
+                 '10110000': '11111100', '01010100': '11111101', '10111011': '11111110', '00010110': '11111111'}
+
+    return [inv_s_box.get(byte) for byte in state]
+
+
+def InvMixColumns(s):
+    # initialize
+    new_state = [''] * 16
+
+    # each column, xor is commutative so no worries about that order
+    for i in range(0, 4):
+        new_state[4 * i]     = xor(xor(xor(MultGF('00001110', s[4*i]),
+                                           MultGF('00001011', s[4*i+1])),
+                                       MultGF('00001101', s[4*i+2])),
+                                   MultGF('00001001', s[4*i+3]))
+        new_state[4 * i + 1] = xor(xor(xor(MultGF('00001001', s[4*i]),
+                                           MultGF('00001110', s[4*i+1])),
+                                       MultGF('00001011', s[4*i+2])),
+                                   MultGF('00001101', s[4*i+3]))
+        new_state[4 * i + 2] = xor(xor(xor(MultGF('00001101', s[4*i]),
+                                           MultGF('00001001', s[4*i+1])),
+                                       MultGF('00001110', s[4*i+2])),
+                                   MultGF('00001011', s[4*i+3]))
+        new_state[4 * i + 3] = xor(xor(xor(MultGF('00001011', s[4*i]),
+                                           MultGF('00001101', s[4*i+1])),
+                                       MultGF('00001001', s[4*i+2])),
+                                   MultGF('00001110', s[4*i+3]))
+
+    return new_state
+
+
+def DecryptAES(bcipher, bkey):
+    """
+    not using the cooler equivalent inverse cause i don't want to make a different key schedule too
+    :param bcipher:
+    :param bkey:
+    :return:
+    """
+
+    if len(bkey) != 8*16:
+        ValueError
+
+    # get round keys
+    round_keys = MakeRoundKeys(exp_key=KeyExpansion(bkey, Nk=4), rounds=11)
+
+    # convert message to blocks
+    msg_blocks = pad_blocks(block_string(bcipher, 128, 'front'), 128, 'back', '0')
+
+    cipher_blocks = [None] * len(msg_blocks)
+
+    for m in range(len(cipher_blocks)):
+        state = MakeState(msg_blocks[m])
+        hex_state = ' '.join([bin_to_hex(a) for a in state])
+
+        # undo rounds 11-2
+        for r in range(10, 0, -1):
+            state = AddRoundKey(state, round_keys[r])
+            hex_state = ' '.join([bin_to_hex(a) for a in state])
+            if r != 10:
+                state = InvMixColumns(state)
+                hex_state = ' '.join([bin_to_hex(a) for a in state])
+            state = InvShiftRows(state)
+            hex_state = ' '.join([bin_to_hex(a) for a in state])
+            state = InvSubBytes(state)
+            hex_state = ' '.join([bin_to_hex(a) for a in state])
+
+        # undo round 1
+        state = AddRoundKey(state, round_keys[0])
+        hex_state = ' '.join([bin_to_hex(a) for a in state])
+
+        cipher_blocks[m] = ''.join(state)
+
+    return ''.join(cipher_blocks)
+
 
 if __name__ == '__main__':
     ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
@@ -259,7 +407,7 @@ if __name__ == '__main__':
     exp_keys = KeyExpansion(hex_to_bin(key))
     round_keys = MakeRoundKeys(exp_keys)
 
-    # test round 1
+    # encrypt tests (on round 1)
     start_round       = block_string(hex_to_bin('193de3bea0f4e22b9ac68d2ae9f84808'), 8, 'front')
     after_SubBytes    = block_string(hex_to_bin('d42711aee0bf98f1b8b45de51e415230'), 8, 'front')
     after_ShiftRows   = block_string(hex_to_bin('d4bf5d30e0b452aeb84111f11e2798e5'), 8, 'front')
@@ -274,6 +422,12 @@ if __name__ == '__main__':
     assert round_key == round_keys[1]
     assert AddRoundKey(after_MixColumns, round_keys[1]) == after_AddRoundKey
     assert EncryptAES(hex_to_bin(input), hex_to_bin(key)) == hex_to_bin('3925841d02dc09fbdc118597196a0b32')
+
+    # decrypt tests (on round 1)
+    assert InvShiftRows(after_ShiftRows) == after_SubBytes
+    assert InvSubBytes(after_SubBytes) == start_round
+    assert InvMixColumns(after_MixColumns) == after_ShiftRows
+    assert DecryptAES(hex_to_bin('3925841d02dc09fbdc118597196a0b32'), hex_to_bin(key)) == hex_to_bin(input)
 
     # test encrypt something
     de_la_plaintext  = open("./de_la_test.txt", "r").read()
