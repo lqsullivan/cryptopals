@@ -127,22 +127,16 @@ def KeyExpansion(key:'bytes', Nk:'32 bit key blocks'=4):
     return w
 
 
-def MakeState(bstring):
-    state = block_string(bstring, 8, 'front')
-
-    return state
-
-
 def ShiftRows(state):
     # note the index is weird cause it's by column not row
     # 0 4 8  12    0  4  8  12
     # 1 5 9  13 -> 5  9  13 1
     # 2 6 10 14    10 14 2  6
     # 3 7 11 15    15 3  7  11
-    new_state = [state[i] for i in [0,  5,  10, 15,
-                                    4,  9,  14, 3,
-                                    8,  13, 2,  7,
-                                    12, 1,  6,  11]]
+    new_state = b''.join([state[i].to_bytes(1, 'big') for i in [0, 5, 10, 15,
+                                                                4, 9, 14, 3,
+                                                                8, 13, 2, 7,
+                                                                12, 1, 6, 11]])
 
     return new_state
 
@@ -199,20 +193,11 @@ def MakeRoundKeys(exp_key, rounds = 11):
     :param rounds: lazily making this 11 since i'm doing 128 bit, hopefully doesn't bite me later
     :return:
     """
-    round_keys = [None] * rounds
-
-    for i in range(rounds):
-        round_keys[i] = block_string(exp_key[4*i    ], 8, 'front') + \
-                        block_string(exp_key[4*i + 1], 8, 'front') + \
-                        block_string(exp_key[4*i + 2], 8, 'front') + \
-                        block_string(exp_key[4*i + 3], 8, 'front')
-    return round_keys
+    return [b''.join(exp_key[(4*i):(4*(i+1))]) for i in range(0, rounds)]
 
 
 def AddRoundKey(state, round_key):
-    new_state = [xor(state[i], round_key[i]) for i in range(0, 16)]
-
-    return new_state
+    return xor(state, round_key)
 
 
 def EncryptAES(message, key):
@@ -222,13 +207,14 @@ def EncryptAES(message, key):
     # get round keys
     round_keys = MakeRoundKeys(exp_key=KeyExpansion(key, Nk=4), rounds=11)
 
-    # convert message to blocks
-    msg_blocks = pad_blocks(block_string(bmessage, 128, 'front'), 128, 'back', '0')
+    # convert message to blocks, padding last block with 0s if needed
+    msg_blocks = [message[i:i+16] for i in range(0, len(message), 16)]
+    msg_blocks[len(msg_blocks)-1] + b''.join([b'0' for i in range(0, 16 - len(msg_blocks[len(msg_blocks)-1]))])
 
     cipher_blocks = [None] * len(msg_blocks)
 
     for m in range(len(cipher_blocks)):
-        state = MakeState(msg_blocks[m])
+        state = msg_blocks[m]
 
         # round 0
         state = AddRoundKey(state, round_keys[0])
@@ -418,6 +404,7 @@ if __name__ == '__main__':
     assert exp_key[15] == b'mz\x88;'
     assert exp_key[32] == b'\xea\xd2s!'
 
+    # LEFT OFF HERE------------------
     # GF(2^8) multiplication
     assert MultGF('01010011', '11001010') == '00000001'
     # probably need more tests here
@@ -453,8 +440,9 @@ if __name__ == '__main__':
 
     # test encrypt something
     de_la_plaintext  = open("./de_la_test.txt", "r").read()
-    de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("me myself and i."))
-    de_la_decoded = DecryptAES(de_la_ciphertext, ascii_to_bin("me myself and i."))
+    message = de_la_plaintext.encode('ascii')
+    key = "YELLOW SUBMARINE".encode('ascii')
+
 
     # decode the prompt
     my_ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
