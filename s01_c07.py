@@ -1,8 +1,32 @@
-from s01_c01 import b64_to_bin, bin_to_b64, ascii_to_bin, bin_to_ascii, hex_to_bin, bin_to_hex, block_string, pad_blocks
-from s01_c02 import xor
+import base64
+
+# easy way
+from Crypto.Cipher import AES
+import base64
+ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
+cipherbytes = base64.decodebytes(bytes(ciphertext.encode()))
+cipher = AES.new(b'YELLOW SUBMARINE', AES.MODE_ECB)
+plaintext = cipher.decrypt(cipherbytes)
 
 
-def SubBytes(state):
+# hard way
+
+def xor(a:'bytes', b:'bytes') -> 'bytes':
+    if len(a) != len(b):
+        raise ValueError('inputs must have same length')
+
+    return b''.join([(a[i] ^ b[i]).to_bytes(1, 'big') for i in range(len(a))])
+
+
+def bitstring_to_bytes(s):
+    """
+    from PM 2 Ring on stack exchange
+    :param s:
+    :return:
+    """
+    return int(s, 2).to_bytes((len(s) + 7) // 8, byteorder='big')
+
+def SubBytes(state:'bytes') -> 'bytes':
     # sub bytes, lookup from fig 7 of spec
     s_box = {'00000000': '01100011', '00000001': '01111100', '00000010': '01110111', '00000011': '01111011',
              '00000100': '11110010', '00000101': '01101011', '00000110': '01101111', '00000111': '11000101',
@@ -69,39 +93,33 @@ def SubBytes(state):
              '11111000': '01000001', '11111001': '10011001', '11111010': '00101101', '11111011': '00001111',
              '11111100': '10110000', '11111101': '01010100', '11111110': '10111011', '11111111': '00010110'}
 
-    return [s_box.get(byte) for byte in state]
-
-
-def SubWord(word):
-    out = SubBytes(block_string(word, 8, 'front'))
-    return ''.join(out)
+    return b''.join([bitstring_to_bytes(s_box.get(bin(byte)[2:].rjust(8, '0'))) for byte in state])
 
 
 def RotWord(word):
-    word_bytes = block_string(word, 8, 'front')
-    out = word_bytes[1:] + word_bytes[:1]
-    return ''.join(out)
+    return word[1:] + word[:1]
 
 
-def KeyExpansion(key, Nk=4):
+def KeyExpansion(key:'bytes', Nk:'32 bit key blocks'=4):
     # define round constants
-    Rcon = ['00000001000000000000000000000000', '00000010000000000000000000000000',
-            '00000100000000000000000000000000', '00001000000000000000000000000000',
-            '00010000000000000000000000000000', '00100000000000000000000000000000',
-            '01000000000000000000000000000000', '10000000000000000000000000000000',
-            '00011011000000000000000000000000', '00110110000000000000000000000000']
+    Rcon = [b'\x01\x00\x00\x00', b'\x02\x00\x00\x00',
+            b'\x04\x00\x00\x00', b'\x08\x00\x00\x00',
+            b'\x10\x00\x00\x00', b' \x00\x00\x00',
+            b'@\x00\x00\x00'   , b'\x80\x00\x00\x00',
+            b'\x1b\x00\x00\x00', b'6\x00\x00\x00']
+
 
     # initialize expanded words
     w = [None] * (4 * (10 + 1))
 
     # first Nk words are the key in 4byte blocks
     for i in range(0, Nk):
-        w[i] = key[(32*i):(32*(i+1))]
+        w[i] = key[(4*i):(4*(i+1))]
     # after that, XOR of word w[i-1] and w[i-Nk], but if i % Nk == 0, transform w[i-1] first
     # transform is RotWord then SubWord on the bytes, then XOR round constant Rcon[i]
     for i in range(Nk, 4 * (10 + 1)):
         if i % Nk == 0:
-            temp_word = xor(SubWord(RotWord(w[i-1])), Rcon[(i // Nk) - 1])
+            temp_word = xor(SubBytes(RotWord(w[i-1])), Rcon[(i // Nk) - 1])
         else:
             temp_word = w[i-1]
         w[i] = xor(temp_word, w[i-Nk])
@@ -197,12 +215,12 @@ def AddRoundKey(state, round_key):
     return new_state
 
 
-def EncryptAES(bmessage, bkey):
-    if len(bkey) != 8*16:
-        ValueError
+def EncryptAES(message, key):
+    if len(key) != 16:
+        raise ValueError("Key must be 16 bytes (for AES-128, I didn't implement others)")
 
     # get round keys
-    round_keys = MakeRoundKeys(exp_key=KeyExpansion(bkey, Nk=4), rounds=11)
+    round_keys = MakeRoundKeys(exp_key=KeyExpansion(key, Nk=4), rounds=11)
 
     # convert message to blocks
     msg_blocks = pad_blocks(block_string(bmessage, 128, 'front'), 128, 'back', '0')
@@ -386,12 +404,19 @@ def DecryptAES(bcipher, bkey):
 
 
 if __name__ == '__main__':
+    # test new xor
+    input = 'ead27321'
+    blocks = [input[i:i+2] for i in range(0, len(input), 2)]
+    b''.join([int(b, 16).to_bytes(1, 'big') for b in blocks])
+    assert xor(b'\x1c\x01\x11\x00\x1f\x01\x01\x00\x06\x1a\x02KSSP\t\x18\x1c',
+               b"hit the bull's eye") == b"the kid don't play"
+
     # test KeyExpansion (appendix A)
-    h_key = '2b7e151628aed2a6abf7158809cf4f3c'
-    hex_w = [bin_to_hex(w) for w in KeyExpansion(hex_to_bin(h_key))]
-    assert hex_w[2]  == 'abf71588'
-    assert hex_w[15] == '6d7a883b'
-    assert hex_w[32] == 'ead27321'
+    key = b'+~\x15\x16(\xae\xd2\xa6\xab\xf7\x15\x88\t\xcfO<'
+    exp_key = [w for w in KeyExpansion(key)]
+    assert exp_key[2]  == b'\xab\xf7\x15\x88'
+    assert exp_key[15] == b'mz\x88;'
+    assert exp_key[32] == b'\xea\xd2s!'
 
     # GF(2^8) multiplication
     assert MultGF('01010011', '11001010') == '00000001'
@@ -427,9 +452,9 @@ if __name__ == '__main__':
     assert DecryptAES(hex_to_bin('3925841d02dc09fbdc118597196a0b32'), hex_to_bin(key)) == hex_to_bin(input)
 
     # test encrypt something
-    # de_la_plaintext  = open("./de_la_test.txt", "r").read()
-    # de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("me myself and i."))
-    # de_la_decoded = DecryptAES(de_la_ciphertext, ascii_to_bin("me myself and i."))
+    de_la_plaintext  = open("./de_la_test.txt", "r").read()
+    de_la_ciphertext = EncryptAES(ascii_to_bin(de_la_plaintext), ascii_to_bin("me myself and i."))
+    de_la_decoded = DecryptAES(de_la_ciphertext, ascii_to_bin("me myself and i."))
 
     # decode the prompt
     my_ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
