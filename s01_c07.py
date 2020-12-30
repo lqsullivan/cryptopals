@@ -149,6 +149,10 @@ def MultGF(a, b):
     :param b:
     :return:
     """
+    # turn a and b from hex to binary string
+    a = bin(a)[2:].rjust(8, '0')
+    b = bin(b)[2:].rjust(8, '0')
+
     p = '00000000'
 
     for i in range(0, 8):
@@ -157,7 +161,7 @@ def MultGF(a, b):
             break
         # if b's trailing bit is 1, xor p and a (addition in this field)
         if(b[7] == '1'):
-            p = xor(p, a)
+            p = bin(int(p, 2) ^ int(a, 2))[2:].rjust(8, '0')
         # shift b one bit right (this divides by x)
         b = '0' + b[:7]
         # set carry flag as leftmost bit of a
@@ -166,23 +170,26 @@ def MultGF(a, b):
         a = a[1:] + '0'
         # if carry, xor a with 0x1b (the irreducible polynomial without the x^8 term)
         if(carry == '1'):
-            a = xor(a, '00011011')
+            a = bin(int(a, 2) ^ 27)[2:].rjust(8, '0')
 
-    return p
+    return int(p, 2)
 
 
-def MixColumns(s):
+def MixColumns(state):
+    # work in hex
+    s = [int(hex(a), 16) for a in state]
+
     # initialize
     new_state = [''] * 16
 
     # each column, xor is commutative so no worries about that order
     for i in range(0, 4):
-        new_state[4*i]   = xor(xor(xor(MultGF('00000010', s[4*i]), MultGF('00000011', s[4*i+1])), s[4*i+2]), s[4*i+3])
-        new_state[4*i+1] = xor(xor(xor(s[4*i], MultGF('00000010', s[4*i+1])), MultGF('00000011', s[4*i+2])), s[4*i+3])
-        new_state[4*i+2] = xor(xor(xor(s[4*i], s[4*i+1]), MultGF('00000010', s[4*i+2])), MultGF('00000011', s[4*i+3]))
-        new_state[4*i+3] = xor(xor(xor(MultGF('00000011', s[4*i]), s[4*i+1]), s[4*i+2]), MultGF('00000010', s[4*i+3]))
+        new_state[4*i]   = MultGF(0x02, s[4*i]) ^ MultGF(0x03, s[4*i+1]) ^ s[4*i+2] ^ s[4*i+3]
+        new_state[4*i+1] = s[4*i] ^ MultGF(0x02, s[4*i+1]) ^ MultGF(0x03, s[4*i+2]) ^ s[4*i+3]
+        new_state[4*i+2] = s[4*i] ^ s[4*i+1] ^ MultGF(0x02, s[4*i+2]) ^ MultGF(0x03, s[4*i+3])
+        new_state[4*i+3] = MultGF(0x03, s[4*i]) ^ s[4*i+1] ^ s[4*i+2] ^ MultGF(0x02, s[4*i+3])
 
-    return new_state
+    return b''.join([a.to_bytes(1, 'big') for a in new_state])
 
 
 def MakeRoundKeys(exp_key, rounds = 11):
@@ -209,7 +216,7 @@ def EncryptAES(message, key):
 
     # convert message to blocks, padding last block with 0s if needed
     msg_blocks = [message[i:i+16] for i in range(0, len(message), 16)]
-    msg_blocks[len(msg_blocks)-1] + b''.join([b'0' for i in range(0, 16 - len(msg_blocks[len(msg_blocks)-1]))])
+    msg_blocks[len(msg_blocks)-1] = msg_blocks[len(msg_blocks)-1] + b''.join([b'0' for i in range(0, 16 - len(msg_blocks[len(msg_blocks)-1]))])
 
     cipher_blocks = [None] * len(msg_blocks)
 
@@ -228,11 +235,10 @@ def EncryptAES(message, key):
                 state = MixColumns(state)
 
             state = AddRoundKey(state, round_keys[r])
-            # hex_state = ' '.join([bin_to_hex(a) for a in state])
 
-        cipher_blocks[m] = ''.join(state)
+        cipher_blocks[m] = state
 
-    return ''.join(cipher_blocks)
+    return b''.join(cipher_blocks)
 
 
 def InvShiftRows(state):
@@ -241,10 +247,10 @@ def InvShiftRows(state):
     # 1 5 9  13 -> 13 1  5  9
     # 2 6 10 14    10 14 2  6
     # 3 7 11 15    7  11 15 3
-    new_state = [state[i] for i in [0, 13, 10, 7,
-                                    4,  1, 14, 11,
-                                    8,  5, 2,  15,
-                                    12, 9, 6,  3]]
+    new_state = b''.join([state[i].to_bytes(1, 'big') for i in [0,  13, 10, 7,
+                                                                4,  1,  14, 11,
+                                                                8,  5,  2,  15,
+                                                                12, 9,  6,  3]])
 
     return new_state
 
@@ -316,84 +322,67 @@ def InvSubBytes(state):
                  '01000001': '11111000', '10011001': '11111001', '00101101': '11111010', '00001111': '11111011',
                  '10110000': '11111100', '01010100': '11111101', '10111011': '11111110', '00010110': '11111111'}
 
-    return [inv_s_box.get(byte) for byte in state]
+    return b''.join([bitstring_to_bytes(inv_s_box.get(bin(byte)[2:].rjust(8, '0'))) for byte in state])
 
 
-def InvMixColumns(s):
+def InvMixColumns(state):
+    # work in hex
+    s = [int(hex(a), 16) for a in state]
+
     # initialize
     new_state = [''] * 16
 
     # each column, xor is commutative so no worries about that order
     for i in range(0, 4):
-        new_state[4 * i]     = xor(xor(xor(MultGF('00001110', s[4*i]),
-                                           MultGF('00001011', s[4*i+1])),
-                                       MultGF('00001101', s[4*i+2])),
-                                   MultGF('00001001', s[4*i+3]))
-        new_state[4 * i + 1] = xor(xor(xor(MultGF('00001001', s[4*i]),
-                                           MultGF('00001110', s[4*i+1])),
-                                       MultGF('00001011', s[4*i+2])),
-                                   MultGF('00001101', s[4*i+3]))
-        new_state[4 * i + 2] = xor(xor(xor(MultGF('00001101', s[4*i]),
-                                           MultGF('00001001', s[4*i+1])),
-                                       MultGF('00001110', s[4*i+2])),
-                                   MultGF('00001011', s[4*i+3]))
-        new_state[4 * i + 3] = xor(xor(xor(MultGF('00001011', s[4*i]),
-                                           MultGF('00001101', s[4*i+1])),
-                                       MultGF('00001001', s[4*i+2])),
-                                   MultGF('00001110', s[4*i+3]))
+        new_state[4 * i]     = MultGF(0x0e, s[4 * i]) ^ MultGF(0x0b, s[4 * i + 1]) ^ MultGF(0x0d, s[4 * i + 2]) ^ MultGF(0x09, s[4 * i + 3])
+        new_state[4 * i + 1] = MultGF(0x09, s[4 * i]) ^ MultGF(0x0e, s[4 * i + 1]) ^ MultGF(0x0b, s[4 * i + 2]) ^ MultGF(0x0d, s[4 * i + 3])
+        new_state[4 * i + 2] = MultGF(0x0d, s[4 * i]) ^ MultGF(0x09, s[4 * i + 1]) ^ MultGF(0x0e, s[4 * i + 2]) ^ MultGF(0x0b, s[4 * i + 3])
+        new_state[4 * i + 3] = MultGF(0x0b, s[4 * i]) ^ MultGF(0x0d, s[4 * i + 1]) ^ MultGF(0x09, s[4 * i + 2]) ^ MultGF(0x0e, s[4 * i + 3])
 
-    return new_state
+    return b''.join([a.to_bytes(1, 'big') for a in new_state])
 
 
-def DecryptAES(bcipher, bkey):
+def DecryptAES(cipher, key):
     """
     not using the cooler equivalent inverse cause i don't want to make a different key schedule too
-    :param bcipher:
-    :param bkey:
-    :return:
     """
-
-    if len(bkey) != 8*16:
-        ValueError
+    if len(key) != 16:
+        raise ValueError("Key must be 16 bytes (for AES-128, I didn't implement others)")
 
     # get round keys
-    round_keys = MakeRoundKeys(exp_key=KeyExpansion(bkey, Nk=4), rounds=11)
+    round_keys = MakeRoundKeys(exp_key=KeyExpansion(key, Nk=4), rounds=11)
 
-    # convert message to blocks
-    msg_blocks = pad_blocks(block_string(bcipher, 128, 'front'), 128, 'back', '0')
+    # convert cipher to blocks
+    cipher_blocks = [message[i:i + 16] for i in range(0, len(cipher), 16)]
+    cipher_blocks[len(cipher_blocks) - 1] = cipher_blocks[len(cipher_blocks) - 1] + b''.join([b'0' for i in range(0, 16 - len(cipher_blocks[len(cipher_blocks) - 1]))])
 
-    cipher_blocks = [None] * len(msg_blocks)
+    msg_blocks = [None] * len(cipher_blocks)
 
     for m in range(len(cipher_blocks)):
-        state = MakeState(msg_blocks[m])
-        hex_state = ' '.join([bin_to_hex(a) for a in state])
+        state = cipher_blocks[m]
 
         # undo rounds 11-2
         for r in range(10, 0, -1):
             state = AddRoundKey(state, round_keys[r])
-            hex_state = ' '.join([bin_to_hex(a) for a in state])
             if r != 10:
                 state = InvMixColumns(state)
-                hex_state = ' '.join([bin_to_hex(a) for a in state])
             state = InvShiftRows(state)
-            hex_state = ' '.join([bin_to_hex(a) for a in state])
             state = InvSubBytes(state)
-            hex_state = ' '.join([bin_to_hex(a) for a in state])
 
         # undo round 1
         state = AddRoundKey(state, round_keys[0])
-        hex_state = ' '.join([bin_to_hex(a) for a in state])
 
-        cipher_blocks[m] = ''.join(state)
+        msg_blocks[m] = state
 
-    return ''.join(cipher_blocks)
+    return b''.join(msg_blocks)
 
 
 if __name__ == '__main__':
     # test new xor
-    input = 'ead27321'
-    blocks = [input[i:i+2] for i in range(0, len(input), 2)]
-    b''.join([int(b, 16).to_bytes(1, 'big') for b in blocks])
+    def make_bytes(input):
+        blocks = [input[i:i+2] for i in range(0, len(input), 2)]
+        return b''.join([int(b, 16).to_bytes(1, 'big') for b in blocks])
+
     assert xor(b'\x1c\x01\x11\x00\x1f\x01\x01\x00\x06\x1a\x02KSSP\t\x18\x1c',
                b"hit the bull's eye") == b"the kid don't play"
 
@@ -410,39 +399,33 @@ if __name__ == '__main__':
     # probably need more tests here
 
     # cipher example from appendix B
-    input = '3243f6a8885a308d313198a2e0370734'
-    key   = '2b7e151628aed2a6abf7158809cf4f3c'
+    input = b'2C\xf6\xa8\x88Z0\x8d11\x98\xa2\xe07\x074'
+    key   = b'+~\x15\x16(\xae\xd2\xa6\xab\xf7\x15\x88\t\xcfO<'
 
-    exp_keys = KeyExpansion(hex_to_bin(key))
+    exp_keys = KeyExpansion(key)
     round_keys = MakeRoundKeys(exp_keys)
 
     # encrypt tests (on round 1)
-    start_round       = block_string(hex_to_bin('193de3bea0f4e22b9ac68d2ae9f84808'), 8, 'front')
-    after_SubBytes    = block_string(hex_to_bin('d42711aee0bf98f1b8b45de51e415230'), 8, 'front')
-    after_ShiftRows   = block_string(hex_to_bin('d4bf5d30e0b452aeb84111f11e2798e5'), 8, 'front')
-    after_MixColumns  = block_string(hex_to_bin('046681e5e0cb199a48f8d37a2806264c'), 8, 'front')
-    round_key         = block_string(hex_to_bin('a0fafe1788542cb123a339392a6c7605'), 8, 'front')
-    after_AddRoundKey = block_string(hex_to_bin('a49c7ff2689f352b6b5bea43026a5049'), 8, 'front')
+    start_round       = b'\x19=\xe3\xbe\xa0\xf4\xe2+\x9a\xc6\x8d*\xe9\xf8H\x08'
+    after_SubBytes    = b"\xd4'\x11\xae\xe0\xbf\x98\xf1\xb8\xb4]\xe5\x1eAR0"
+    after_ShiftRows   = b"\xd4\xbf]0\xe0\xb4R\xae\xb8A\x11\xf1\x1e'\x98\xe5"
+    after_MixColumns  = b'\x04f\x81\xe5\xe0\xcb\x19\x9aH\xf8\xd3z(\x06&L'
+    round_key         = b'\xa0\xfa\xfe\x17\x88T,\xb1#\xa399*lv\x05'
+    after_AddRoundKey = b'\xa4\x9c\x7f\xf2h\x9f5+k[\xeaC\x02jPI'
 
-    assert start_round == block_string(xor(hex_to_bin(input), hex_to_bin(key)), 8, 'front')
+    assert start_round == xor(input, round_keys[0])
     assert SubBytes(start_round) == after_SubBytes
     assert ShiftRows(after_SubBytes) == after_ShiftRows
     assert MixColumns(after_ShiftRows) == after_MixColumns
     assert round_key == round_keys[1]
     assert AddRoundKey(after_MixColumns, round_keys[1]) == after_AddRoundKey
-    assert EncryptAES(hex_to_bin(input), hex_to_bin(key)) == hex_to_bin('3925841d02dc09fbdc118597196a0b32')
+    assert EncryptAES(input, key) == b'9%\x84\x1d\x02\xdc\t\xfb\xdc\x11\x85\x97\x19j\x0b2'
 
     # decrypt tests (on round 1)
     assert InvShiftRows(after_ShiftRows) == after_SubBytes
     assert InvSubBytes(after_SubBytes) == start_round
     assert InvMixColumns(after_MixColumns) == after_ShiftRows
-    assert DecryptAES(hex_to_bin('3925841d02dc09fbdc118597196a0b32'), hex_to_bin(key)) == hex_to_bin(input)
-
-    # test encrypt something
-    de_la_plaintext  = open("./de_la_test.txt", "r").read()
-    message = de_la_plaintext.encode('ascii')
-    key = "YELLOW SUBMARINE".encode('ascii')
-
+    assert DecryptAES(b'9%\x84\x1d\x02\xdc\t\xfb\xdc\x11\x85\x97\x19j\x0b2', key) == input
 
     # decode the prompt
     my_ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
