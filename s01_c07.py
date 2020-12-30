@@ -353,24 +353,28 @@ def DecryptAES(cipher, key):
     round_keys = MakeRoundKeys(exp_key=KeyExpansion(key, Nk=4), rounds=11)
 
     # convert cipher to blocks
-    cipher_blocks = [message[i:i + 16] for i in range(0, len(cipher), 16)]
+    cipher_blocks = [cipher[i:i + 16] for i in range(0, len(cipher), 16)]
     cipher_blocks[len(cipher_blocks) - 1] = cipher_blocks[len(cipher_blocks) - 1] + b''.join([b'0' for i in range(0, 16 - len(cipher_blocks[len(cipher_blocks) - 1]))])
 
     msg_blocks = [None] * len(cipher_blocks)
 
     for m in range(len(cipher_blocks)):
         state = cipher_blocks[m]
-
+        h_state = ' '.join([state.hex()[i:i+2] for i in range(0, len(state.hex()), 2)])
         # undo rounds 11-2
         for r in range(10, 0, -1):
             state = AddRoundKey(state, round_keys[r])
+            h_state = ' '.join([state.hex()[i:i + 2] for i in range(0, len(state.hex()), 2)])
             if r != 10:
                 state = InvMixColumns(state)
+                h_state = ' '.join([state.hex()[i:i + 2] for i in range(0, len(state.hex()), 2)])
             state = InvShiftRows(state)
+            h_state = ' '.join([state.hex()[i:i + 2] for i in range(0, len(state.hex()), 2)])
             state = InvSubBytes(state)
-
+            h_state = ' '.join([state.hex()[i:i + 2] for i in range(0, len(state.hex()), 2)])
         # undo round 1
         state = AddRoundKey(state, round_keys[0])
+        h_state = ' '.join([state.hex()[i:i+2] for i in range(0, len(state.hex()), 2)])
 
         msg_blocks[m] = state
 
@@ -395,7 +399,7 @@ if __name__ == '__main__':
 
     # LEFT OFF HERE------------------
     # GF(2^8) multiplication
-    assert MultGF('01010011', '11001010') == '00000001'
+    assert MultGF(0x53, 0xca) == 1
     # probably need more tests here
 
     # cipher example from appendix B
@@ -429,32 +433,5 @@ if __name__ == '__main__':
 
     # decode the prompt
     my_ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
-    key = "YELLOW SUBMARINE"
-    plaintext = DecryptAES(b64_to_bin(ciphertext), ascii_to_bin(key))
-    print(bin_to_ascii(plaintext))
-
-    # troubleshoot decrypt
-    test_plain = "I'm back and I'm ringing the bell"
-    test_crypt = EncryptAES(ascii_to_bin(test_plain), ascii_to_bin("YELLOW SUBMARINE"))
-    a = DecryptAES(test_crypt, ascii_to_bin("YELLOW SUBMARINE"))
-
-# or i guess here's how they intended...i thought 'in code' meant do it yourself
-from Crypto.Cipher import AES
-import base64
-ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
-cipherbytes = base64.decodebytes(bytes(ciphertext.encode()))
-cipher = AES.new(b'YELLOW SUBMARINE', AES.MODE_ECB)
-plaintext = cipher.decrypt(cipherbytes)
-
-# test 1 - encode a single 16-byte message
-from Crypto.Util.Padding import pad, unpad
-
-plaintext = 'this message is 32 bytes longggg'
-key       = 'YELLOW SUBMARINE'
-true_encode = cipher.encrypt(plaintext.encode('ascii'))
-my_encode   = EncryptAES(ascii_to_bin(plaintext), ascii_to_bin(key))
-assert true_encode.hex() == bin_to_hex(my_encode)
-
-# test 2 - decode that single 16-byte message
-true_decode = cipher.decrypt(true_encode)
-my_decode = bin_to_ascii(DecryptAES(my_encode, ascii_to_bin(key)))
+    plaintext = DecryptAES(base64.b64decode(ciphertext), b'YELLOW SUBMARINE')
+    print(plaintext)
