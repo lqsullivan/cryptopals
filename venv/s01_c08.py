@@ -1,9 +1,9 @@
 # detect AES in ECB mode
 # since 16-byte chunks always encode the same way, if we assume the true
-# plaintext has more repeated 2-hex blocks than the others, we can
+# plaintext has more repeated 4-hex blocks than the others, we can
 # just count those and find the one with the most
 
-def count_repetitions(input, n=2):
+def count_repetitions(input, n=4):
     blocks = [input[i:i+n] for i in range(0, len(input), n)]
 
     count = {}
