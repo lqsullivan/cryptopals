@@ -432,6 +432,6 @@ if __name__ == '__main__':
     assert DecryptAES(b'9%\x84\x1d\x02\xdc\t\xfb\xdc\x11\x85\x97\x19j\x0b2', key) == input
 
     # decode the prompt
-    my_ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
+    ciphertext = open('s01_c07_input.txt').read().replace('\n', '')
     plaintext = DecryptAES(base64.b64decode(ciphertext), b'YELLOW SUBMARINE')
     print(plaintext)

@@ -16,21 +16,20 @@ def hiddencrypt(plaintext, key):
 
     if randint(0, 1) == 0:
         # ECB mode
-        ciphertext = EncryptAES(plain, key)
+        return 'ECB', EncryptAES(plain, key)
     else:
         # CBC mode
-        ciphertext = encrypt_aes_cbc(plain, key, rand_key(16))
-
-    return ciphertext
+        return 'CBC', encrypt_aes_cbc(plain, key, rand_key(16))
 
 
 def detect_mode(ciphertext):
-    # count repetitions of 2-byte blocks
-    reps = count_repetitions(ciphertext, 2)
-    sum(reps.values()) - len(reps)
-    if
-
-    return mode
+    # count repetitions of 16-byte blocks
+    reps = count_repetitions(ciphertext, 16)
+    # if there are any, call it ECB
+    if sum(reps.values()) - len(reps) > 0:
+        return 'ECB'
+    else:
+        return 'CBC'
 
 
 # write a function to detect the mode
@@ -38,6 +37,19 @@ def detect_mode(ciphertext):
     # might be enough to say ECB or not ECB
 
 if __name__ == "__main__":
-    # randomly encrypt a bunch, then record guesses and answers?
-    plaintext = b'Now I rock a house party at the drop of a hat, yeah\nI beat a biter down with an aluminum bat '
-    hiddencrypt(plaintext, key=rand_key(16))
+    # is it OK to use a trivial string of one repeated char?
+    # i peeked at other people's solutions and they did but it seems cheap and unrealistic
+    plaintext = b'0'*16*4
+    out = ['None'] * 1000
+    for i in range(len(out)):
+        ciphertext = hiddencrypt(plaintext, rand_key(16))
+        out[i] = ciphertext[0] == detect_mode(ciphertext[1])
+    print('trivial test message:', sum(out)/len(out))
+
+    # not great for an actual message
+    plaintext = open("./test_your_rump.txt", "r").read().replace('\n', '').encode('ascii')
+    out = ['None'] * 100
+    for i in range(len(out)):
+        ciphertext = hiddencrypt(plaintext, rand_key(16))
+        out[i] = ciphertext[0] == detect_mode(ciphertext[1])
+    print('real test message:', sum(out) / len(out))
