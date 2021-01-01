@@ -1,4 +1,5 @@
 import base64
+from s02_c09 import pad, unpad
 
 # easy way
 from Crypto.Cipher import AES
@@ -214,9 +215,9 @@ def EncryptAES(message, key):
     # get round keys
     round_keys = MakeRoundKeys(exp_key=KeyExpansion(key, Nk=4), rounds=11)
 
-    # convert message to blocks, padding last block with 0s if needed
+    # pad message and convert to byte blocks
+    message = pad(message, 16)
     msg_blocks = [message[i:i+16] for i in range(0, len(message), 16)]
-    msg_blocks[len(msg_blocks)-1] = msg_blocks[len(msg_blocks)-1] + b''.join([b'0' for i in range(0, 16 - len(msg_blocks[len(msg_blocks)-1]))])
 
     cipher_blocks = [None] * len(msg_blocks)
 
@@ -354,7 +355,6 @@ def DecryptAES(cipher, key):
 
     # convert cipher to blocks
     cipher_blocks = [cipher[i:i + 16] for i in range(0, len(cipher), 16)]
-    cipher_blocks[len(cipher_blocks) - 1] = cipher_blocks[len(cipher_blocks) - 1] + b''.join([b'0' for i in range(0, 16 - len(cipher_blocks[len(cipher_blocks) - 1]))])
 
     msg_blocks = [None] * len(cipher_blocks)
 
@@ -378,7 +378,8 @@ def DecryptAES(cipher, key):
 
         msg_blocks[m] = state
 
-    return b''.join(msg_blocks)
+    # unpad message
+    return unpad(b''.join(msg_blocks))
 
 
 if __name__ == '__main__':
