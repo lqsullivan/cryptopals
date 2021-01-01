@@ -13,7 +13,10 @@ def pad(message, n, method = "PKCS#7"):
         if n > 255:
             raise ValueError('For PKCS#7 padding, block size must be <256')
         # pad with number of bytes added
-        p = n - (len(message) % n)
+        if len(message) % n == 0:
+            p = 0
+        else:
+            p = n - (len(message) % n)
 
     if isinstance(message, str):
         return message + ''.join([chr(p)] * p)
@@ -46,7 +49,9 @@ if __name__ == '__main__':
     assert pad("YELLOW SUBMARINE", 20) == "YELLOW SUBMARINE\x04\x04\x04\x04"
     assert unpad(pad("YELLOW SUBMARINE", 20)) == "YELLOW SUBMARINE"
     assert unpad("YELLOW SUBMARINE\x03\x03") == "YELLOW SUBMARINE\x03\x03"
+    assert pad("YELLOW SUBMARINE", 16) == "YELLOW SUBMARINE"
 
     assert pad(b"YELLOW SUBMARINE", 20) == b"YELLOW SUBMARINE\x04\x04\x04\x04"
     assert unpad(pad(b"YELLOW SUBMARINE", 20)) == b"YELLOW SUBMARINE"
     assert unpad(b"YELLOW SUBMARINE\x03\x03") == b"YELLOW SUBMARINE\x03\x03"
+    assert pad(b"YELLOW SUBMARINE", 16) == b"YELLOW SUBMARINE"
