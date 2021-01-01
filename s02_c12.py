@@ -23,25 +23,27 @@ def guess_block_size(secret_key):
             return i
     # prob needs a default return
 
-block_size = guess_block_size(secret_key)
 
-# detect ECB
-detect_mode(ECB_append(b'A'*64, secret_key))
+if __name__ == "__main__":
+    block_size = guess_block_size(secret_key)
+
+    # detect ECB
+    detect_mode(ECB_append(b'A'*64, secret_key))
 
 
-message = [b''] * len(ECB_append(b'', secret_key))
-# for char in message
-for i in range(len(message)):
-    # prefix with chars and known message so the last byte of a block is the first unknown byte
-    true_ciphertext = ECB_append(b'A'*(block_size - ((i+1) % block_size)), secret_key)[:((i+1) // block_size + 1) * block_size]
-    for b in range(256):
-        test_msg = b'A'*(block_size - ((i+1) % block_size)) + b''.join(message) + bytes([b])
-        candidate_ciphertext = ECB_append(test_msg, secret_key)[:((i+1) // block_size + 1) * block_size]
-        # carriage returns are new to me
-        print(b''.join(message) + bytes([b]), end = '\r')
-        if true_ciphertext == candidate_ciphertext:
-            message[i] = bytes([b])
-            break
+    message = [b''] * len(ECB_append(b'', secret_key))
+    # for char in message
+    for i in range(len(message)):
+        # prefix with chars and known message so the last byte of a block is the first unknown byte
+        true_ciphertext = ECB_append(b'A'*(block_size - ((i+1) % block_size)), secret_key)[:((i+1) // block_size + 1) * block_size]
+        for b in range(256):
+            test_msg = b'A'*(block_size - ((i+1) % block_size)) + b''.join(message) + bytes([b])
+            candidate_ciphertext = ECB_append(test_msg, secret_key)[:((i+1) // block_size + 1) * block_size]
+            # carriage returns are new to me
+            print(b''.join(message) + bytes([b]), end = '\r')
+            if true_ciphertext == candidate_ciphertext:
+                message[i] = bytes([b])
+                break
 
-# is slow, but it works
+    # is slow, but it works
 
