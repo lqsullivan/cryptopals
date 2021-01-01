@@ -2,13 +2,13 @@ from s01_c07 import EncryptAES
 from s02_c11 import rand_key, detect_mode
 from base64 import b64decode
 from Crypto.Cipher import AES
-cipher = AES.new(b'YELLOW SUBMARINE', AES.MODE_ECB)
-plaintext = cipher.decrypt(cipherbytes)
 
-# Break ECB byte-by-byte (with ability to encrypt arbitrary messages including prefixing the real one)
 
-# set an unknown key
-secret_key = rand_key(16)
+
+# Break ECB byte-by-byte
+# (with ability to encrypt arbitrary messages
+# and prefix the real one)
+
 
 # append an unknown specific string to some known message before encrypting
 def append_ECB(message, secret_key):
@@ -32,11 +32,12 @@ def guess_block_size(secret_key):
 
 
 if __name__ == "__main__":
+    secret_key = rand_key(16)
+
     block_size = guess_block_size(secret_key)
 
     # detect ECB
     detect_mode(append_ECB(b'A'*64, secret_key))
-
 
     message = [b''] * len(append_ECB(b'', secret_key))
     # for char in message
