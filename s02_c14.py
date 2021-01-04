@@ -15,8 +15,8 @@ class ECBOracle:
         self._b64_target = b64_target
 
     def make_text(self, insert):
-        return pad(rand_key(randint(0, 255)) + \
-                   insert.encode('ascii') + \
+        return pad(rand_key(randint(0, 255)) +
+                   insert.encode('ascii') +
                    b64decode(self._b64_target), 16)
 
     def encrypt(self, insert):
@@ -26,18 +26,12 @@ class ECBOracle:
         return unpad(self._aes_cipher.decrypt(ciphertext))
 
 
-# identify block size
-# put in bytes one at a time, count the number of identical bytes at the beginning?
-def guess_block_size(secret_key):
-    for i in range(1, 128):
-        ciphertext = append_ECB(b'A'*2*i, secret_key)
-        if ciphertext[:i] == ciphertext[i:2*i]:
-            return i
-    # prob needs a default return
-
-
 if __name__ == "__main__":
-    b64_secret = 'Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A'
+    b64_secret = 'Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lybGllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A='
     cipher = ECBOracle(b64_secret)
-
     cipher.encrypt('a')
+
+
+
+    # think stimulus and response
+
