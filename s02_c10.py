@@ -1,4 +1,5 @@
 from s01_c07 import xor
+from s02_c09 import pad, unpad
 from Crypto.Cipher import AES
 from base64 import b64decode
 
@@ -15,8 +16,7 @@ class CBC:
     def encrypt(self, plaintext):
         # break plaintext into chunks
         msg_blocks = [plaintext[i:i + 16] for i in range(0, len(plaintext), 16)]
-        msg_blocks[len(msg_blocks) - 1] = msg_blocks[len(msg_blocks) - 1] + \
-                                          b''.join([b'0' for i in range(0, 16 - len(msg_blocks[len(msg_blocks) - 1]))])
+        msg_blocks[len(msg_blocks) - 1] = pad(msg_blocks[len(msg_blocks) - 1], 16)
 
         # initialize encrypted blocks
         cipher_blocks = [None] * len(msg_blocks)
@@ -35,9 +35,6 @@ class CBC:
     def decrypt(self, ciphertext):
         # break plaintext into chunks
         cipher_blocks = [ciphertext[i:i + 16] for i in range(0, len(ciphertext), 16)]
-        cipher_blocks[len(cipher_blocks) - 1] = cipher_blocks[len(cipher_blocks) - 1] + \
-                                                b''.join([b'0' for i in
-                                                          range(0, 16 - len(cipher_blocks[len(cipher_blocks) - 1]))])
 
         # initialize encrypted blocks
         msg_blocks = [None] * len(cipher_blocks)
@@ -52,6 +49,7 @@ class CBC:
             else:
                 msg_blocks[m] = xor(msg_blocks[m], cipher_blocks[m - 1])
 
+        msg_blocks[len(cipher_blocks) - 1] = unpad(msg_blocks[len(cipher_blocks) - 1])
         return b''.join(msg_blocks)
 
 
