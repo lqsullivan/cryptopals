@@ -28,30 +28,37 @@ def pad(message, n, method = "PKCS#7"):
 
 def unpad(message, method = "PKCS#7"):
     if method == "PKCS#7":
+        # STRING INPUT
         if isinstance(message, str):
             # pick value of last byte
-            n_pad = int(message[len(message) - 1].encode().hex(), 16)
+            pad_char = message[len(message) - 1]
+            n = int(pad_char.encode('ascii').hex(), 16)
             # handle unpadded messages
-            if message[(len(message) - n_pad):] != bytes([n_pad] * n_pad).decode('ascii'):
-                return message
+            if message[(len(message) - n):] == pad_char*n:
+                return message[:(len(message)-n)]
+            else:
+                raise Exception('invalid message padding')
+        # BYTES INPUT
         elif isinstance(message, bytes):
-            n_pad = message[len(message)-1]
+            n = message[len(message)-1]
             # handle unpadded messages
-            if message[(len(message) - n_pad):] != bytes([n_pad] * n_pad):
-                return message
+            if message[(len(message) - n):] == bytes([n]*n):
+                return message[:(len(message)-n)]
+            else:
+                raise Exception('invalid message padding')
         else:
             raise TypeError("pad doesn't know how to handle type " + type(message).__name__)
 
-    # remove that many bytes
-    return message[:(len(message) - n_pad)]
 
 if __name__ == '__main__':
     assert pad("YELLOW SUBMARINE", 20) == "YELLOW SUBMARINE\x04\x04\x04\x04"
     assert unpad(pad("YELLOW SUBMARINE", 20)) == "YELLOW SUBMARINE"
-    assert unpad("YELLOW SUBMARINE\x03\x03") == "YELLOW SUBMARINE\x03\x03"
     assert pad("YELLOW SUBMARINE", 16) == "YELLOW SUBMARINE"
 
     assert pad(b"YELLOW SUBMARINE", 20) == b"YELLOW SUBMARINE\x04\x04\x04\x04"
     assert unpad(pad(b"YELLOW SUBMARINE", 20)) == b"YELLOW SUBMARINE"
-    assert unpad(b"YELLOW SUBMARINE\x03\x03") == b"YELLOW SUBMARINE\x03\x03"
     assert pad(b"YELLOW SUBMARINE", 16) == b"YELLOW SUBMARINE"
+
+    # invalid pads
+    assert unpad("YELLOW SUBMARINE\x03\x03") == "YELLOW SUBMARINE\x03\x03"
+    assert unpad(b"YELLOW SUBMARINE\x03\x03") == b"YELLOW SUBMARINE\x03\x03"
