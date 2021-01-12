@@ -15,6 +15,7 @@ class CBC:
 
     def encrypt(self, plaintext):
         # break plaintext into chunks
+        plaintext = plaintext.encode('ascii')
         msg_blocks = [plaintext[i:i + 16] for i in range(0, len(plaintext), 16)]
         msg_blocks[len(msg_blocks) - 1] = pad(msg_blocks[len(msg_blocks) - 1], 16)
 
@@ -50,11 +51,12 @@ class CBC:
                 msg_blocks[m] = xor(msg_blocks[m], cipher_blocks[m - 1])
 
         msg_blocks[len(cipher_blocks) - 1] = unpad(msg_blocks[len(cipher_blocks) - 1])
-        return b''.join(msg_blocks)
+
+        return b''.join(msg_blocks).decode('ascii')
 
 
 if __name__ == '__main__':
     cipher = CBC(key='YELLOW SUBMARINE', iv='\x00'*16)
-    ciphertext  = open("./s02_c10_input.txt", "r").read().replace('\n', '')
+    ciphertext = open("./s02_c10_input.txt", "r").read().replace('\n', '')
     plaintext = cipher.decrypt(b64decode(ciphertext))
 
