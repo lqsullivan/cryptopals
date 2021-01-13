@@ -9,8 +9,20 @@ from base64 import b64decode
 
 class CBC:
     def __init__(self, key, iv):
-        self._key = key.encode('ascii')
-        self._iv = iv.encode('ascii')
+        if isinstance(key, str):
+            self._key = key.encode('ascii')
+        elif isinstance(key, bytes):
+            self._key = key
+        else:
+            raise Exception("Key is not str or bytes object")
+
+        if isinstance(iv, str):
+            self._iv = iv.encode('ascii')
+        elif isinstance(iv, bytes):
+            self._key = iv
+        else:
+            raise Exception("IV is not str or bytes object")
+
         self._aes_cipher = AES.new(self._key, AES.MODE_ECB)
 
     def encrypt(self, plaintext):
