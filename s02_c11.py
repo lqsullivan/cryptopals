@@ -1,9 +1,10 @@
 from random import randint
 from s01_c07 import EncryptAES, DecryptAES
 from s01_c08 import count_repetitions
-from s02_c10 import encrypt_aes_cbc, decrypt_aes_cbc
+from s02_c10 import CBC
 
 # ECB/CBC detection oracle
+
 
 # generate random AES key (16 bytes)
 def rand_key(n_bytes=16):
@@ -12,14 +13,15 @@ def rand_key(n_bytes=16):
 
 def hiddencrypt(plaintext, key):
     # append bytes to plaintext
-    plain = rand_key(randint(5, 10)) + plaintext + rand_key(randint(5, 10))
+    plain = rand_key(randint(5, 10)) + plaintext+ rand_key(randint(5, 10))
 
     if randint(0, 1) == 0:
         # ECB mode
         return 'ECB', EncryptAES(plain, key)
     else:
         # CBC mode
-        return 'CBC', encrypt_aes_cbc(plain, key, rand_key(16))
+        cipher = CBC(key, rand_key(16))
+        return 'CBC', cipher.encrypt(plain)
 
 
 def detect_mode(ciphertext):
