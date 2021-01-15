@@ -1,4 +1,6 @@
+from Crypto.Cipher import AES
 from s02_c10 import CBC
+from s02_c11 import rand_key
 
 
 class CBCOracle(CBC):
@@ -6,6 +8,11 @@ class CBCOracle(CBC):
     subclass of CBC with encrypt overwritten
 
     """
+    def __init__(self, key, iv):
+        self._key = key
+        self._iv = iv
+        self._aes_cipher = AES.new(self._key, AES.MODE_ECB)
+
     def prep_string(self, plaintext):
         plaintext = plaintext.replace(';', '').replace('=', '')
         return 'comment1=cooking%20MCs;userdata=' + plaintext + ';comment2=%20like%20a%20pound%20of%20bacon'
@@ -27,7 +34,7 @@ class CBCOracle(CBC):
 
 if __name__ == '__main__':
     # test new class
-    cipher = CBCOracle(key='YELLOW SUBMARINE', iv='\x00'*16)
+    cipher = CBCOracle(key=b'YELLOW SUBMARINE', iv=b'\x00'*16)
     a = cipher.encrypt('asdf')
     cipher.decrypt(a)
     cipher.is_admin(a)
@@ -42,4 +49,4 @@ if __name__ == '__main__':
     # then observe and lock the bits as the next block produces the message i want
     # also have to find block boundaries first and adjust the input accordingly
     # maybe i input user data as one block and try to get it to be '<16bitgibberish>AAAA;admin=true;'?
-
+    cipher = CBCOracle
