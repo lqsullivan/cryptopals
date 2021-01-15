@@ -19,15 +19,22 @@ class CBC:
         if isinstance(iv, str):
             self._iv = iv.encode('ascii')
         elif isinstance(iv, bytes):
-            self._key = iv
+            self._iv = iv
         else:
             raise Exception("IV is not str or bytes object")
 
         self._aes_cipher = AES.new(self._key, AES.MODE_ECB)
 
     def encrypt(self, plaintext):
+        # handle bytes or string input
+        if isinstance(plaintext, str):
+            plaintext = plaintext.encode('ascii')
+        elif isinstance(plaintext, bytes):
+            None
+        else:
+            raise Exception("plaintext input is not str or bytes object")
+
         # break plaintext into chunks
-        plaintext = plaintext.encode('ascii')
         msg_blocks = [plaintext[i:i + 16] for i in range(0, len(plaintext), 16)]
         msg_blocks[len(msg_blocks) - 1] = pad(msg_blocks[len(msg_blocks) - 1], 16)
 
