@@ -69,7 +69,7 @@ class CBC:
             else:
                 msg_blocks[m] = xor(msg_blocks[m], cipher_blocks[m - 1])
 
-        msg = unpad(b''.join(msg_blocks).decode('ascii'), 16)
+        msg = unpad(b''.join(msg_blocks), 16).decode('ascii')
 
         return b''.join(msg_blocks).decode('ascii')
 
